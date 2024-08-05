@@ -1,1 +1,1 @@
-Simple Background Changer using React Hooks.
+Created Ai Chatbot using React with the help of API of Gooogle Gemini.
