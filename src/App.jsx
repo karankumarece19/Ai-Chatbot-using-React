@@ -7,59 +7,142 @@ function App() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [generatingAnswer, setGeneratingAnswer] = useState(false);
+  const [conversation, setConversation] = useState([]);
 
   async function generateAnswer(e) {
     setGeneratingAnswer(true);
     e.preventDefault();
-    setAnswer("Loading your answer... \n It might take up to 10 seconds");
+    
+    if (!question.trim()) return;
+    
+    const userMessage = { type: 'user', content: question, timestamp: new Date() };
+    setConversation(prev => [...prev, userMessage]);
+    
+    setAnswer("🤔 Thinking...");
+    
     try {
       const response = await axios({
-        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=AIzaSyAtpAKost8jNAVMgq-z8JjE5FRWl8b7ycc",
+        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyAkjFfmsv6AerWBGioAZujExZ5bpXOXPf0",
         method: "post",
         data: {
           contents: [{ parts: [{ text: question }] }],
         },
       });
 
-      setAnswer(
-        response.data.candidates[0].content.parts[0].text
-      );
+      const aiResponse = response.data.candidates[0].content.parts[0].text;
+      setAnswer(aiResponse);
+      
+      const aiMessage = { type: 'ai', content: aiResponse, timestamp: new Date() };
+      setConversation(prev => [...prev, aiMessage]);
     } catch (error) {
-      setAnswer("Sorry - Something went wrong. Please try again!");
+      const errorMessage = "Sorry - Something went wrong. Please try again!";
+      setAnswer(errorMessage);
+      
+      const aiMessage = { type: 'ai', content: errorMessage, timestamp: new Date() };
+      setConversation(prev => [...prev, aiMessage]);
     }
 
     setGeneratingAnswer(false);
+    setQuestion("");
   }
 
+  const clearConversation = () => {
+    setConversation([]);
+    setAnswer("");
+  };
+
   return (
-    <div className="bg-gradient-to-r from-indigo-400 to-pink-400 min-h-screen p-6 flex flex-col justify-center items-center">
-      <form
-        onSubmit={generateAnswer}
-        className="w-full md:w-2/3 lg:w-1/2 xl:w-1/3 bg-white text-center rounded-lg shadow-lg py-8 px-6 transition-transform duration-500 transform hover:scale-105"
-      >
-        <a href="" target="_blank" rel="noopener noreferrer">
-          <h1 className="text-6xl font-extrabold text-blue-600 mb-6 animate-pulse">Ask AI</h1>
-          <p className="text-sm font-bold text-gray-450">Using Google Gemini API</p>
-        </a>
-        <textarea
-          required
-          className="border border-gray-300 rounded w-full my-4 min-h-[100px] p-4 transition-shadow duration-300 focus:border-blue-400 focus:shadow-lg"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask any of your querry..."
-        ></textarea>
-        <button
-          type="submit"
-          className={`bg-blue-500 text-white py-3 px-6 rounded-md hover:bg-blue-600 transition-colors duration-300 ${
-            generatingAnswer ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-          disabled={generatingAnswer}
-        >
-          {generatingAnswer ? 'Generating...' : 'Generate Answer'}
-        </button>
-      </form>
-      <div className="w-full md:w-2/3 lg:w-1/2 xl:w-1/3 bg-white text-center rounded-lg shadow-lg my-6 p-6 transition-transform duration-500 transform hover:scale-105">
-        <ReactMarkdown className="text-left">{answer}</ReactMarkdown>
+    <div className="app-container">
+      <div className="header">
+        <div className="header-content">
+          <h1 className="app-title">
+            <span className="title-icon">🤖</span>
+            AI Chat Assistant
+          </h1>
+        </div>
+      </div>
+
+      <div className="main-content">
+        <div className="chat-container">
+          {conversation.length === 0 ? (
+            <div className="welcome-screen">
+  
+              <h2>Welcome to AI Chat!</h2>
+              <p>Ask me anything and I'll help you find answers.</p>
+              <div className="feature-list">
+                <div className="feature-item">
+                  <span className="feature-icon">✨</span>
+                  <span>Smart responses with Gemini 2.0</span>
+                </div>
+                <div className="feature-item">
+                  <span className="feature-icon">⚡</span>
+                  <span>Fast and accurate answers</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="conversation">
+              {conversation.map((message, index) => (
+                <div key={index} className={`message ${message.type}`}>
+                  <div className="message-avatar">
+                    {message.type === 'user' ? '👤' : '🤖'}
+                  </div>
+                  <div className="message-content">
+                    <div className="message-text">
+                      {message.type === 'user' ? (
+                        <p>{message.content}</p>
+                      ) : (
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      )}
+                    </div>
+                    <div className="message-time">
+                      {message.timestamp.toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="input-section">
+          <form onSubmit={generateAnswer} className="input-form">
+            <div className="input-container">
+              <textarea
+                required
+                className="question-input"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Ask me anything..."
+                rows="3"
+                disabled={generatingAnswer}
+              />
+              <button
+                type="submit"
+                className={`send-button ${generatingAnswer ? 'loading' : ''}`}
+                disabled={generatingAnswer || !question.trim()}
+              >
+                {generatingAnswer ? (
+                  <>
+                    <span className="loading-spinner"></span>
+                    <span>Thinking...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="send-icon">📤</span>
+                    <span>Send</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+          
+          {conversation.length > 0 && (
+            <button onClick={clearConversation} className="clear-button">
+              🗑️ Clear Chat
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
